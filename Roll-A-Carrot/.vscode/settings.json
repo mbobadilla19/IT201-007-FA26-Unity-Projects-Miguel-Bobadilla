@@ -67,5 +67,5 @@
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-    "dotnet.defaultSolution": "Project _1 - Unity C_ Roll a Ball - MAIN.slnx"
+    "dotnet.defaultSolution": "Roll-A-Carrot.slnx"
 }
