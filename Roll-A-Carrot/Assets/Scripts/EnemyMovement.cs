@@ -4,9 +4,13 @@ using UnityEngine.AI;
 public class EnemyMovement : MonoBehaviour
 {
     public Transform player;
-
     public bool waitForPlayer = false;
     public float detectionRange = 8f;
+
+    [Header("Navigation Check — Read During Play")]
+    public bool onNavMesh;
+    public NavMeshPathStatus pathStatus;
+    public float remainingDistance;
 
     private NavMeshAgent navMeshAgent;
     private bool chaseStarted;
@@ -19,10 +23,15 @@ public class EnemyMovement : MonoBehaviour
 
     void Update()
     {
-        if (!navMeshAgent.isOnNavMesh)
+        onNavMesh = navMeshAgent.isOnNavMesh;
+
+        if (!onNavMesh)
         {
             return;
         }
+
+        pathStatus = navMeshAgent.pathStatus;
+        remainingDistance = navMeshAgent.remainingDistance;
 
         if (player == null)
         {
