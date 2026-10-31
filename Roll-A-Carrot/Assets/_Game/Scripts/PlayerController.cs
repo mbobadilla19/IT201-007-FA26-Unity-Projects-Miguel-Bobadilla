@@ -7,6 +7,13 @@ public class PlayerController : MonoBehaviour
 {
     public float speed = 0;
 
+    [Header("Pickup Audio")]
+    public AudioClip pickupSound;
+    [Range(0f, 1f)] public float pickupVolume = 0.6f;
+
+    [Header("Respawn")]
+    public Transform respawnPoint;
+
     [Header("Jump")]
     public float jumpStrength = 6f;
 
@@ -28,6 +35,9 @@ public class PlayerController : MonoBehaviour
     public GameObject castleDoor;
 
     private Rigidbody rb;
+    private AudioSource pickupAudioSource;
+    private Vector3 startingPosition;
+    private Quaternion startingRotation;
     private int count;
     private float movementX;
     private float movementY;
@@ -42,6 +52,14 @@ public class PlayerController : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody>();
+
+        // A dedicated source lets the sound finish after its coin is hidden.
+        pickupAudioSource = gameObject.AddComponent<AudioSource>();
+        pickupAudioSource.playOnAwake = false;
+        pickupAudioSource.loop = false;
+        pickupAudioSource.spatialBlend = 0f;
+        startingPosition = rb.position;
+        startingRotation = rb.rotation;
         count = 0;
         winTextObject.SetActive(false);
         SetCountText();
@@ -169,6 +187,21 @@ public class PlayerController : MonoBehaviour
         return dashTimeRemaining > 0f;
     }
 
+    public void Respawn()
+    {
+        // Stop the fall and any active dash before returning to a safe point.
+        rb.linearVelocity = Vector3.zero;
+        rb.angularVelocity = Vector3.zero;
+        jumpRequested = false;
+        dashRequested = false;
+        dashTimeRemaining = 0f;
+        dashCooldownRemaining = 0f;
+        groundContacts.Clear();
+
+        rb.position = respawnPoint != null ? respawnPoint.position : startingPosition;
+        rb.rotation = respawnPoint != null ? respawnPoint.rotation : startingRotation;
+    }
+
     void SetCountText()
     {
         countText.text = "Count: " + count.ToString();
@@ -243,6 +276,10 @@ public class PlayerController : MonoBehaviour
             other.gameObject.CompareTag("PickUp"))
         {
             other.gameObject.SetActive(false);
+            if (pickupSound != null)
+            {
+                pickupAudioSource.PlayOneShot(pickupSound, pickupVolume);
+            }
             count = count + 1;
             SetCountText();
         }
