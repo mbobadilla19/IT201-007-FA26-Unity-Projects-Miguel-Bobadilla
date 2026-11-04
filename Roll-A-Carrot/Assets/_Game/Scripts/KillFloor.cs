@@ -19,7 +19,7 @@ public class KillFloor : MonoBehaviour
         PlayerController player = body.GetComponent<PlayerController>();
         if (player != null)
         {
-            player.Respawn();
+            player.LoseLife();
         }
     }
 }

@@ -7,6 +7,16 @@ public class PlayerController : MonoBehaviour
 {
     public float speed = 0;
 
+    [Header("Level Exit")]
+    [Min(1)] public int requiredPickups = 12;
+    public GameObject levelExit;
+    public bool CanUseExit => !gameOver && count >= requiredPickups;
+
+    [Header("Lives")]
+    public int startingLives = 3;
+    public TextMeshProUGUI livesText;
+    public float respawnProtection = 1.5f;
+
     [Header("Pickup Audio")]
     public AudioClip pickupSound;
     [Range(0f, 1f)] public float pickupVolume = 0.6f;
@@ -39,6 +49,10 @@ public class PlayerController : MonoBehaviour
     private Vector3 startingPosition;
     private Quaternion startingRotation;
     private int count;
+    private int livesRemaining;
+    public int LivesRemaining => livesRemaining;
+    private bool gameOver;
+    private float protectedUntil;
     private float movementX;
     private float movementY;
     private bool jumpRequested;
@@ -61,6 +75,12 @@ public class PlayerController : MonoBehaviour
         startingPosition = rb.position;
         startingRotation = rb.rotation;
         count = 0;
+        if (levelExit != null)
+        {
+            levelExit.SetActive(false);
+        }
+        livesRemaining = Mathf.Max(1, startingLives);
+        UpdateLivesText();
         winTextObject.SetActive(false);
         SetCountText();
     }
@@ -75,7 +95,7 @@ public class PlayerController : MonoBehaviour
     // PlayerInput sends this when the existing Jump action (Space) is pressed.
     void OnJump(InputValue value)
     {
-        if (value.isPressed && Time.timeScale > 0f)
+        if (value.isPressed && Time.timeScale > 0f && !gameOver)
         {
             jumpRequested = true;
         }
@@ -84,7 +104,7 @@ public class PlayerController : MonoBehaviour
     // Left Shift is already bound to the Sprint input action.
     void OnSprint(InputValue value)
     {
-        if (value.isPressed && Time.timeScale > 0f)
+        if (value.isPressed && Time.timeScale > 0f && !gameOver)
         {
             dashRequested = true;
         }
@@ -92,6 +112,11 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        if (gameOver)
+        {
+            return;
+        }
+
         Vector3 direction = new Vector3(movementX, 0f, movementY);
         if (dashTimeRemaining > 0f)
         {
@@ -120,6 +145,11 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (gameOver)
+        {
+            return;
+        }
+
         Vector3 movement = new Vector3(movementX, 0f, movementY);
         if (!UpdateDash(movement))
         {
@@ -189,6 +219,11 @@ public class PlayerController : MonoBehaviour
 
     public void Respawn()
     {
+        if (gameOver)
+        {
+            return;
+        }
+
         // Stop the fall and any active dash before returning to a safe point.
         rb.linearVelocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
@@ -202,9 +237,56 @@ public class PlayerController : MonoBehaviour
         rb.rotation = respawnPoint != null ? respawnPoint.rotation : startingRotation;
     }
 
+    public void LoseLife()
+    {
+        if (gameOver || Time.time < protectedUntil)
+        {
+            return;
+        }
+
+        livesRemaining--;
+        UpdateLivesText();
+
+        if (livesRemaining <= 0)
+        {
+            gameOver = true;
+            movementX = 0f;
+            movementY = 0f;
+            jumpRequested = false;
+            dashRequested = false;
+            dashTimeRemaining = 0f;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.isKinematic = true;
+
+            if (characterAnimator != null)
+            {
+                characterAnimator.SetBool("IsMoving", false);
+            }
+
+            if (winTextObject != null)
+            {
+                winTextObject.GetComponent<TextMeshProUGUI>().text = "Game Over!";
+                winTextObject.SetActive(true);
+            }
+            return;
+        }
+
+        Respawn();
+        protectedUntil = Time.time + Mathf.Max(0f, respawnProtection);
+    }
+
+    private void UpdateLivesText()
+    {
+        if (livesText != null)
+        {
+            livesText.text = "Lives: " + livesRemaining;
+        }
+    }
+
     void SetCountText()
     {
-        countText.text = "Count: " + count.ToString();
+        countText.text = "Coins: " + count + " / " + requiredPickups;
 
         if (count >= 2 && grassLevelDoor != null)
         {
@@ -226,10 +308,15 @@ public class PlayerController : MonoBehaviour
             castleDoor.SetActive(false);
         }
 
-        // Includes the final sky collectible.
-        if (count >= 14)
+        // Collecting the coins reveals the exit; the final win happens in the next scene.
+        if (CanUseExit && levelExit != null)
         {
-            winTextObject.SetActive(true);
+            levelExit.SetActive(true);
+            if (winTextObject != null)
+            {
+                winTextObject.GetComponent<TextMeshProUGUI>().text = "Exit unlocked!";
+                winTextObject.SetActive(true);
+            }
         }
     }
 
@@ -239,15 +326,17 @@ public class PlayerController : MonoBehaviour
 
         if (collision.gameObject.CompareTag("Enemy"))
         {
-            Destroy(gameObject);
-            winTextObject.SetActive(true);
-            winTextObject.GetComponent<TextMeshProUGUI>().text = "You Lose!";
+            LoseLife();
         }
     }
 
     private void OnCollisionStay(Collision collision)
     {
         TrackGroundContact(collision);
+        if (collision.gameObject.CompareTag("Enemy"))
+        {
+            LoseLife();
+        }
     }
 
     private void OnCollisionExit(Collision collision)
@@ -272,6 +361,11 @@ public class PlayerController : MonoBehaviour
 
     void OnTriggerEnter(Collider other)
     {
+        if (gameOver)
+        {
+            return;
+        }
+
         if (other.gameObject.activeInHierarchy &&
             other.gameObject.CompareTag("PickUp"))
         {
