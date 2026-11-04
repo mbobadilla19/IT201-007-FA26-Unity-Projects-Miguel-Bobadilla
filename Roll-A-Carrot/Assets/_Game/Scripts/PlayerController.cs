@@ -303,7 +303,7 @@ public class PlayerController : MonoBehaviour
             snowDoor.SetActive(false);
         }
 
-        if (count >= 12 && castleDoor != null)
+        if (count >= 10 && castleDoor != null)
         {
             castleDoor.SetActive(false);
         }
