@@ -9,7 +9,9 @@ public class PlayerController : MonoBehaviour
 
     [Header("Level Exit")]
     [Min(1)] public int requiredPickups = 12;
+    public bool winAfterPickups = false;
     public GameObject levelExit;
+    public bool HasWon => gameOver && winAfterPickups && count >= requiredPickups && livesRemaining > 0;
     public bool CanUseExit => !gameOver && count >= requiredPickups;
 
     [Header("Lives")]
@@ -276,6 +278,15 @@ public class PlayerController : MonoBehaviour
         protectedUntil = Time.time + Mathf.Max(0f, respawnProtection);
     }
 
+    public bool TryRestoreLife()
+    {
+        if (gameOver || livesRemaining >= Mathf.Max(1, startingLives))
+            return false;
+        livesRemaining++;
+        UpdateLivesText();
+        return true;
+    }
+
     private void UpdateLivesText()
     {
         if (livesText != null)
@@ -287,6 +298,32 @@ public class PlayerController : MonoBehaviour
     void SetCountText()
     {
         countText.text = "Coins: " + count + " / " + requiredPickups;
+
+        // Enable this only in the final scene; other scenes still unlock their exit.
+        if (winAfterPickups && count >= requiredPickups && !gameOver)
+        {
+            gameOver = true;
+            movementX = 0f;
+            movementY = 0f;
+            jumpRequested = false;
+            dashRequested = false;
+            dashTimeRemaining = 0f;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.isKinematic = true;
+
+            if (characterAnimator != null)
+            {
+                characterAnimator.SetBool("IsMoving", false);
+            }
+
+            if (winTextObject != null)
+            {
+                winTextObject.GetComponent<TextMeshProUGUI>().text = "You Win!";
+                winTextObject.SetActive(true);
+            }
+            return;
+        }
 
         if (count >= 2 && grassLevelDoor != null)
         {
@@ -303,7 +340,7 @@ public class PlayerController : MonoBehaviour
             snowDoor.SetActive(false);
         }
 
-        if (count >= 10 && castleDoor != null)
+        if (count >= 11 && castleDoor != null)
         {
             castleDoor.SetActive(false);
         }

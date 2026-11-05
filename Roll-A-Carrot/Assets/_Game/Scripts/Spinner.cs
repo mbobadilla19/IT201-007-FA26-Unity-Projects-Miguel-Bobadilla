@@ -1,5 +1,6 @@
 using UnityEngine;
 
+[RequireComponent(typeof(Rigidbody))]
 public class Spinner : MonoBehaviour
 {
     public float rotationSpeed = 40f;
@@ -9,6 +10,9 @@ public class Spinner : MonoBehaviour
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
+        if (rb == null) rb = gameObject.AddComponent<Rigidbody>();
+        rb.isKinematic = true;
+        rb.useGravity = false;
     }
 
     void FixedUpdate()
